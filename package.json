@@ -1,7 +1,7 @@
 {
 	"name": "@heycool/n8n-nodes",
 	"version": "0.1.0",
-	"description": "",
+	"description": "A collection of n8n nodes.",
 	"keywords": [
 		"n8n-community-node-package"
 	],
