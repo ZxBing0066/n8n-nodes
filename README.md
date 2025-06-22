@@ -1,48 +1,62 @@
-![Banner image](https://user-images.githubusercontent.com/10284570/173569848-c624317f-42b1-45a6-ab09-f0ea3c247648.png)
+# @heycool/n8n-nodes-plus
 
-# n8n-nodes-starter
+This is a personal collection of n8n community nodes that adds enhanced functionality to your n8n workflows.
 
-This repo contains example nodes to help you get started building your own custom integrations for [n8n](https://n8n.io). It includes the node linter and other dependencies.
+## Installation
 
-To make your custom node available to the community, you must create it as an npm package, and [submit it to the npm registry](https://docs.npmjs.com/packages-and-modules/contributing-packages-to-the-registry).
+Follow the [installation guide](https://docs.n8n.io/integrations/community-nodes/installation/) in the n8n community nodes documentation.
 
-If you would like your node to be available on n8n cloud you can also [submit your node for verification](https://docs.n8n.io/integrations/creating-nodes/deploy/submit-community-nodes/).
+## Included Nodes
 
-## Prerequisites
+### Node - LmChatGoogleGeminiPlus
 
-You need the following installed on your development machine:
+An enhanced version of the official Google Gemini node with the following improvements:
 
-* [git](https://git-scm.com/downloads)
-* Node.js and npm. Minimum version Node 20. You can find instructions on how to install both using nvm (Node Version Manager) for Linux, Mac, and WSL [here](https://github.com/nvm-sh/nvm). For Windows users, refer to Microsoft's guide to [Install NodeJS on Windows](https://docs.microsoft.com/en-us/windows/dev-environment/javascript/nodejs-on-windows).
-* Install n8n with:
-  ```
-  npm install n8n -g
-  ```
-* Recommended: follow n8n's guide to [set up your development environment](https://docs.n8n.io/integrations/creating-nodes/build/node-development-environment/).
+- **Network Proxy Support**: Fixes the issue where the official Gemini node doesn't work with network proxies
+- **Google Search Integration**: Adds support for Google Search capability, allowing the model to search the web for relevant information
+- **Debug Mode**: Includes a debug mode option for additional logging in the terminal
 
-## Using this starter
+But it does not support the following features:
 
-These are the basic steps for working with the starter. For detailed guidance on creating and publishing nodes, refer to the [documentation](https://docs.n8n.io/integrations/creating-nodes/).
+- **AI Agent**
+- **Chat Messages**
 
-1. [Generate a new repository](https://github.com/n8n-io/n8n-nodes-starter/generate) from this template repository.
-2. Clone your new repo:
-   ```
-   git clone https://github.com/<your organization>/<your-repo-name>.git
-   ```
-3. Run `npm i` to install dependencies.
-4. Open the project in your editor.
-5. Browse the examples in `/nodes` and `/credentials`. Modify the examples, or replace them with your own nodes.
-6. Update the `package.json` to match your details.
-7. Run `npm run lint` to check for errors or `npm run lintfix` to automatically fix errors when possible.
-8. Test your node locally. Refer to [Run your node locally](https://docs.n8n.io/integrations/creating-nodes/test/run-node-locally/) for guidance.
-9. Replace this README with documentation for your node. Use the [README_TEMPLATE](README_TEMPLATE.md) to get started.
-10. Update the LICENSE file to use your details.
-11. [Publish](https://docs.npmjs.com/packages-and-modules/contributing-packages-to-the-registry) your package to npm.
+## Credentials
 
-## More information
+The nodes in this collection use the following credentials:
 
-Refer to our [documentation on creating nodes](https://docs.n8n.io/integrations/creating-nodes/) for detailed information on building your own nodes.
+### Google Palm API
 
-## License
+To use the Google Gemini node, you need a Google API key:
 
-[MIT](https://github.com/n8n-io/n8n-nodes-starter/blob/master/LICENSE.md)
+1. Visit the [Google AI Studio](https://makersuite.google.com/app/apikey)
+2. Create an API key
+3. Use this API key in the n8n credentials configuration
+
+## Compatibility
+
+Requires n8n version 1.0.0 or later.
+
+Node.js >= 20.15 is required.
+
+## Usage
+
+### Usage - LmChatGoogleGeminiPlus
+
+1. Add the "Google Gemini Chat Model Plus" node to your workflow
+2. Configure your Google Palm API credentials
+3. Select your preferred model (default is gemini-1.0-pro)
+4. Toggle "Enable Google Search" if you want the model to have web search capability
+5. Adjust additional options like temperature, tokens, etc. as needed
+6. Connect to AI Chain, AI Agent, or other compatible nodes
+
+## Resources
+
+- [n8n community nodes documentation](https://docs.n8n.io/integrations/#community-nodes)
+- [Google Gemini API Documentation](https://ai.google.dev/docs/gemini_api_overview)
+- [GitHub Repository](https://github.com/ZxBing0066/n8n-nodes)
+
+## Version history
+
+- **0.1.0**: Initial release with LmChatGoogleGeminiPlus node
+- **0.2.0**: Added debug mode

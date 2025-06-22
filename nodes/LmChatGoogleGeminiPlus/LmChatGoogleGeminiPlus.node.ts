@@ -1,4 +1,3 @@
-/* eslint-disable n8n-nodes-base/node-dirname-against-convention */
 import { GoogleGenAI, SafetySetting } from '@google/genai';
 import { NodeConnectionType } from 'n8n-workflow';
 import type {
@@ -8,21 +7,22 @@ import type {
 	SupplyData,
 } from 'n8n-workflow';
 
-import { getConnectionHintNoticeField } from '../../utils/sharedFields';
-
 import { additionalOptions } from '../gemini-common/additional-options';
+import { getConnectionHintNoticeField } from '../../utils/sharedFields';
+import { createLogger } from '../../utils/logger';
+
+const name = 'lmChatGoogleGeminiPlus';
 
 export class LmChatGoogleGeminiPlus implements INodeType {
 	description: INodeTypeDescription = {
 		displayName: 'Google Gemini Chat Model Plus',
-		// eslint-disable-next-line n8n-nodes-base/node-class-description-name-miscased
-		name: 'lmChatGoogleGeminiPlus',
+		name,
 		icon: 'file:google.svg',
 		group: ['transform'],
 		version: 1,
-		description: 'Chat Model Google Gemini',
+		description: 'Chat Model Google Gemini Plus with Google Search',
 		defaults: {
-			name: 'Google Gemini Chat Model',
+			name: 'Google Gemini Chat Model Plus',
 		},
 		codex: {
 			categories: ['AI'],
@@ -38,9 +38,7 @@ export class LmChatGoogleGeminiPlus implements INodeType {
 				],
 			},
 		},
-		// eslint-disable-next-line n8n-nodes-base/node-class-description-inputs-wrong-regular-node
 		inputs: [],
-		// eslint-disable-next-line n8n-nodes-base/node-class-description-outputs-wrong
 		outputs: [NodeConnectionType.AiLanguageModel],
 		outputNames: ['Model'],
 		credentials: [
@@ -117,6 +115,13 @@ export class LmChatGoogleGeminiPlus implements INodeType {
 				default: false,
 				description: 'Whether to enable Google Search capability',
 			},
+			{
+				displayName: 'Debug Mode',
+				name: 'debugMode',
+				type: 'boolean',
+				default: false,
+				description: 'Whether to enable debug mode for additional logging in the terminal',
+			},
 			additionalOptions,
 		],
 	};
@@ -126,6 +131,7 @@ export class LmChatGoogleGeminiPlus implements INodeType {
 
 		const modelName = this.getNodeParameter('modelName', itemIndex) as string;
 		const enableSearch = this.getNodeParameter('enableSearch', itemIndex, false) as boolean;
+		const debugMode = this.getNodeParameter('debugMode', itemIndex, false) as boolean;
 		const options = this.getNodeParameter('options', itemIndex, {
 			maxOutputTokens: 1024,
 			temperature: 0.7,
@@ -144,27 +150,57 @@ export class LmChatGoogleGeminiPlus implements INodeType {
 			null,
 		) as SafetySetting[];
 
+		const logger = createLogger(name, debugMode);
+
 		const genAI = new GoogleGenAI({
 			apiKey: credentials.apiKey as string,
 		});
 
-		const model = {
-			async call(input: string) {
+		// 创建一个简单的模型函数
+		const model = async (messages: any, ...args: any[]) => {
+			logger.debug('Call with messages:', messages, ...args);
+
+			logger.debug('Input Data', this.getInputData());
+
+			// 处理消息格式
+			let prompt: string;
+			if (Array.isArray(messages)) {
+				prompt = messages
+					.map((msg: any) => {
+						if (typeof msg === 'string') return msg;
+						return msg.content || msg.text || String(msg);
+					})
+					.join('\n');
+			} else if (typeof messages === 'string') {
+				prompt = messages;
+			} else if (messages && typeof messages === 'object' && messages.value) {
+				prompt = messages.value;
+			} else {
+				prompt = String(messages);
+			}
+
+			try {
 				const response = await genAI.models.generateContent({
 					model: modelName.replace('models/', ''),
-					contents: [input],
+					contents: [prompt],
 					config: {
 						maxOutputTokens: options.maxOutputTokens,
 						temperature: options.temperature,
 						topK: options.topK,
 						topP: options.topP,
-						safetySettings,
+						safetySettings: safetySettings || undefined,
 						tools: enableSearch ? [{ googleSearch: {} }] : undefined,
 					},
 				});
 
+				logger.debug('Response:', response);
+
+				// 返回文本内容
 				return response.text || '';
-			},
+			} catch (error) {
+				logger.error('Error calling Gemini API:', error);
+				throw error;
+			}
 		};
 
 		return {
