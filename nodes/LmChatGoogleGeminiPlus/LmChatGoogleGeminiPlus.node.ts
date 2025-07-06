@@ -21,7 +21,7 @@ export class LmChatGoogleGeminiPlus implements INodeType {
 		name,
 		icon: 'file:google.svg',
 		group: ['transform'],
-		version: 1.1,
+		version: 2,
 		description: 'Chat Model Google Gemini Plus with Google Search and Proxy Support',
 		defaults: {
 			name: 'Google Gemini Chat Model Plus',
