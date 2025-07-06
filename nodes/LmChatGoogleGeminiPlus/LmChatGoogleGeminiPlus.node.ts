@@ -185,6 +185,7 @@ export class LmChatGoogleGeminiPlus implements INodeType {
 				logger.debug(`Using proxy: ${proxyUrl}`);
 			}
 
+			// https://ai.google.dev/gemini-api/docs/google-search#supported_models
 			// The full REST API endpoint URL
 			const url = `https://generativelanguage.googleapis.com/v1beta/${modelName}:generateContent?key=${apiKey}`;
 
