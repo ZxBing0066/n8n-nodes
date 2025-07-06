@@ -12,6 +12,15 @@ export const additionalOptions: INodeProperties = {
 	default: {},
 	// eslint-disable-next-line n8n-nodes-base/node-param-collection-type-unsorted-items
 	options: [
+		// // --- MODIFIED: Added Proxy URL parameter ---
+		// {
+		// 	displayName: 'Proxy URL',
+		// 	name: 'proxy',
+		// 	type: 'string',
+		// 	default: '',
+		// 	placeholder: 'http://user:pass@host:port',
+		// 	description: 'Optional HTTP/HTTPS proxy to use for the API request',
+		// },
 		{
 			displayName: 'Maximum Number of Tokens',
 			name: 'maxOutputTokens',

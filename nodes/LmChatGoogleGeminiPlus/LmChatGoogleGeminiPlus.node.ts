@@ -1,4 +1,6 @@
-import { GoogleGenAI, SafetySetting } from '@google/genai';
+import axios from 'axios';
+import { HttpsProxyAgent } from 'https-proxy-agent';
+import { SafetySetting } from '@google/genai'; // Keep for type safety
 import { NodeConnectionType } from 'n8n-workflow';
 import type {
 	INodeType,
@@ -19,8 +21,8 @@ export class LmChatGoogleGeminiPlus implements INodeType {
 		name,
 		icon: 'file:google.svg',
 		group: ['transform'],
-		version: 1,
-		description: 'Chat Model Google Gemini Plus with Google Search',
+		version: 1.1,
+		description: 'Chat Model Google Gemini Plus with Google Search and Proxy Support',
 		defaults: {
 			name: 'Google Gemini Chat Model Plus',
 		},
@@ -68,17 +70,10 @@ export class LmChatGoogleGeminiPlus implements INodeType {
 							},
 							output: {
 								postReceive: [
-									{
-										type: 'rootProperty',
-										properties: {
-											property: 'models',
-										},
-									},
+									{ type: 'rootProperty', properties: { property: 'models' } },
 									{
 										type: 'filter',
-										properties: {
-											pass: "={{ !$responseItem.name.includes('embedding') }}",
-										},
+										properties: { pass: "={{ !$responseItem.name.includes('embedding') }}" },
 									},
 									{
 										type: 'setKeyValue',
@@ -88,23 +83,13 @@ export class LmChatGoogleGeminiPlus implements INodeType {
 											description: '={{$responseItem.description}}',
 										},
 									},
-									{
-										type: 'sort',
-										properties: {
-											key: 'name',
-										},
-									},
+									{ type: 'sort', properties: { key: 'name' } },
 								],
 							},
 						},
 					},
 				},
-				routing: {
-					send: {
-						type: 'body',
-						property: 'model',
-					},
-				},
+				routing: { send: { type: 'body', property: 'model' } },
 				// eslint-disable-next-line n8n-nodes-base/node-param-default-wrong-for-options
 				default: 'models/gemini-1.0-pro',
 			},
@@ -113,7 +98,8 @@ export class LmChatGoogleGeminiPlus implements INodeType {
 				name: 'enableSearch',
 				type: 'boolean',
 				default: false,
-				description: 'Whether to enable Google Search capability',
+				description:
+					"Whether to enable Google Search capability. This uses the Gemini API's built-in search tool.",
 			},
 			{
 				displayName: 'Debug Mode',
@@ -128,12 +114,13 @@ export class LmChatGoogleGeminiPlus implements INodeType {
 
 	async supplyData(this: ISupplyDataFunctions, itemIndex: number): Promise<SupplyData> {
 		const credentials = await this.getCredentials('googlePalmApi');
+		const apiKey = credentials.apiKey as string;
 
 		const modelName = this.getNodeParameter('modelName', itemIndex) as string;
 		const enableSearch = this.getNodeParameter('enableSearch', itemIndex, false) as boolean;
 		const debugMode = this.getNodeParameter('debugMode', itemIndex, false) as boolean;
 		const options = this.getNodeParameter('options', itemIndex, {
-			maxOutputTokens: 1024,
+			maxOutputTokens: 2048,
 			temperature: 0.7,
 			topK: 40,
 			topP: 0.9,
@@ -152,57 +139,85 @@ export class LmChatGoogleGeminiPlus implements INodeType {
 
 		const logger = createLogger(name, debugMode);
 
-		const genAI = new GoogleGenAI({
-			apiKey: credentials.apiKey as string,
-		});
-
-		// 创建一个简单的模型函数
+		// This is the function that will be returned and called by n8n chains.
+		// It encapsulates the entire API call logic.
 		const model = async (messages: any, ...args: any[]) => {
 			logger.debug('Call with messages:', messages, ...args);
 
-			logger.debug('Input Data', this.getInputData());
-
-			// 处理消息格式
+			// 1. Process incoming messages into a single prompt string
 			let prompt: string;
 			if (Array.isArray(messages)) {
-				prompt = messages
-					.map((msg: any) => {
-						if (typeof msg === 'string') return msg;
-						return msg.content || msg.text || String(msg);
-					})
-					.join('\n');
-			} else if (typeof messages === 'string') {
-				prompt = messages;
-			} else if (messages && typeof messages === 'object' && messages.value) {
-				prompt = messages.value;
+				prompt = messages.map((msg: any) => msg.content || msg.text || String(msg)).join('\n');
 			} else {
-				prompt = String(messages);
+				prompt = String(messages.value || messages);
 			}
 
+			const modelVersion = modelName.match(/models\/gemini-(\d+)\.(\d+)/);
+			const [, majorVersion, minorVersion] = modelVersion || [];
+
+			// 2. Manually construct the REST API request body
+			const requestBody = {
+				contents: [{ parts: [{ text: prompt }] }],
+				// Use the correct REST API format for the search tool
+				tools: enableSearch
+					? [
+							+majorVersion >= 2
+								? { google_search: {} }
+								: +majorVersion === 1 && +minorVersion >= 5
+									? { google_search_retrieval: {} }
+									: {},
+						]
+					: undefined,
+				generationConfig: {
+					maxOutputTokens: options.maxOutputTokens,
+					temperature: options.temperature,
+					topK: options.topK,
+					topP: options.topP,
+				},
+				safetySettings: safetySettings || undefined,
+			};
+
+			// 3. Create a proxy agent only if a URL is provided.
+			// This agent is a local variable and does not affect any other requests.
+			const proxyUrl = process.env.HTTPS_PROXY || process.env.HTTP_PROXY || '';
+			const httpsAgent = proxyUrl ? new HttpsProxyAgent(proxyUrl) : undefined;
+			if (httpsAgent) {
+				logger.debug(`Using proxy: ${proxyUrl}`);
+			}
+
+			// The full REST API endpoint URL
+			const url = `https://generativelanguage.googleapis.com/v1beta/${modelName}:generateContent?key=${apiKey}`;
+
+			logger.debug('Request body:', requestBody);
+
 			try {
-				const response = await genAI.models.generateContent({
-					model: modelName.replace('models/', ''),
-					contents: [prompt],
-					config: {
-						maxOutputTokens: options.maxOutputTokens,
-						temperature: options.temperature,
-						topK: options.topK,
-						topP: options.topP,
-						safetySettings: safetySettings || undefined,
-						tools: enableSearch ? [{ googleSearch: {} }] : undefined,
-					},
+				// 4. Use axios to make a self-contained API call.
+				// The `httpsAgent` is passed directly into the request config.
+				const response = await axios.post(url, requestBody, {
+					headers: { 'Content-Type': 'application/json' },
+					httpsAgent: httpsAgent,
 				});
 
-				logger.debug('Response:', response);
-
-				// 返回文本内容
-				return response.text || '';
+				// 5. Parse the response from the REST API
+				// The structure is different from the SDK's response.
+				const text = response.data?.candidates?.[0]?.content?.parts?.[0]?.text || '';
+				logger.debug('Response received from API:', response.data);
+				return text;
 			} catch (error) {
-				logger.error('Error calling Gemini API:', error);
+				logger.error('Error calling Gemini REST API:', error);
 				throw error;
 			}
 		};
 
+		logger.debug('Model function initialized with options:', {
+			modelName,
+			enableSearch,
+			debugMode,
+			options,
+			safetySettings,
+		});
+
+		// Return the model function to be used by n8n
 		return {
 			response: model,
 		};
